@@ -2,10 +2,10 @@ name = "whoop-trmnl"
 main = "index.js"
 compatibility_date = "2024-01-01"
 
-# Optional: bind a KV namespace to cache access tokens between requests
-# This reduces token refresh calls. Create with:
-#   wrangler kv:namespace create "WHOOP_KV"
-# Then uncomment and fill in the id:
+# Required: WHOOP rotates refresh tokens (each is single-use), so the current
+# token must be persisted between requests. Create your own namespace with:
+#   wrangler kv namespace create "WHOOP_KV"
+# and replace the id below with the one it prints.
 
 [[kv_namespaces]]
 binding = "WHOOP_KV"

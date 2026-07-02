@@ -149,12 +149,12 @@
 
   <!-- Header -->
   <div class="header">
-    <span class="header-title">⟳ WHOOP</span>
-    <span class="score-state">{{ score_state | downcase }}</span>
+    <span class="header-title">WHOOP</span>
+    <span class="score-state">{{ score_state | replace: "_", " " | downcase }}</span>
   </div>
 
   <!-- Recovery ring + HRV / RHR / SpO2 -->
-  {% assign rec = recovery_score | plus: 0 %}
+  {% assign rec = recovery_score | default: 0 | plus: 0 %}
   {% assign circ = 251 %}
   {% assign fill = rec | times: circ | divided_by: 100 %}
 
@@ -167,18 +167,18 @@
           stroke-linecap="round"/>
       </svg>
       <div class="ring-center">
-        <span class="ring-number">{{ recovery_score }}%</span>
+        <span class="ring-number">{% if recovery_score %}{{ recovery_score }}%{% else %}–{% endif %}</span>
         <span class="ring-label">Recovery</span>
       </div>
     </div>
 
     <div class="recovery-stats">
       <div class="stat">
-        <span class="stat-val">{{ hrv_rmssd_milli }}<small style="font-size:11px;font-weight:400"> ms</small></span>
+        <span class="stat-val">{{ hrv_rmssd_milli | default: "–" }}<small style="font-size:11px;font-weight:400"> ms</small></span>
         <span class="stat-lbl">HRV</span>
       </div>
       <div class="stat">
-        <span class="stat-val">{{ resting_heart_rate }}<small style="font-size:11px;font-weight:400"> bpm</small></span>
+        <span class="stat-val">{{ resting_heart_rate | default: "–" }}<small style="font-size:11px;font-weight:400"> bpm</small></span>
         <span class="stat-lbl">Resting HR</span>
       </div>
       {% if spo2_percentage %}
@@ -203,14 +203,14 @@
 
     <!-- Sleep panel -->
     <div class="panel">
-      <div class="panel-title">😴 Sleep</div>
+      <div class="panel-title">Sleep</div>
       <div class="panel-row">
         <span>Performance</span>
-        <span>{{ sleep_performance_pct }}%</span>
+        <span>{% if sleep_performance_pct %}{{ sleep_performance_pct }}%{% else %}–{% endif %}</span>
       </div>
       <div class="panel-row">
         <span>Duration</span>
-        <span>{{ sleep_duration }}</span>
+        <span>{{ sleep_duration | default: "—" }}</span>
       </div>
       <div class="panel-row">
         <span>Deep</span>
@@ -222,32 +222,32 @@
       </div>
       <div class="panel-row">
         <span>Efficiency</span>
-        <span>{{ sleep_efficiency_pct }}%</span>
+        <span>{% if sleep_efficiency_pct %}{{ sleep_efficiency_pct }}%{% else %}–{% endif %}</span>
       </div>
       <div class="panel-row">
         <span>Resp. Rate</span>
-        <span>{{ respiratory_rate }} rpm</span>
+        <span>{{ respiratory_rate | default: "–" }} rpm</span>
       </div>
     </div>
 
     <!-- Strain panel -->
     <div class="panel">
-      <div class="panel-title">⚡ Strain</div>
+      <div class="panel-title">Strain</div>
       <div class="panel-row">
         <span>Day Strain</span>
-        <span>{{ day_strain }}</span>
+        <span>{{ day_strain | default: "–" }}</span>
       </div>
       <div class="panel-row">
         <span>Avg HR</span>
-        <span>{{ avg_heart_rate }} bpm</span>
+        <span>{{ avg_heart_rate | default: "–" }} bpm</span>
       </div>
       <div class="panel-row">
         <span>Calories</span>
-        <span>{{ calories }} kcal</span>
+        <span>{{ calories | default: "–" }} kcal</span>
       </div>
       <div class="panel-row">
         <span>Kilojoules</span>
-        <span>{{ kilojoules }} kJ</span>
+        <span>{{ kilojoules | default: "–" }} kJ</span>
       </div>
     </div>
   </div>

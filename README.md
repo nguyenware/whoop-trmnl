@@ -50,8 +50,7 @@ TRMNL's **Polling** strategy hits your Worker URL every 15–60 minutes. The Wor
 
 ```bash
 cd oauth/
-npm install       # installs nothing; uses only Node built-ins
-WHOOP_CLIENT_ID=xxx WHOOP_CLIENT_SECRET=yyy node get_token.js
+WHOOP_CLIENT_ID=xxx WHOOP_CLIENT_SECRET=yyy node get_token.js   # uses only Node built-ins
 ```
 
 Open the printed URL in your browser, authorize, and your terminal will print a `WHOOP_REFRESH_TOKEN`. **Save it securely.**
@@ -63,8 +62,14 @@ You need [Wrangler](https://developers.cloudflare.com/workers/wrangler/) (Cloudf
 ```bash
 npm install -g wrangler
 wrangler login
-
 cd worker/
+```
+
+**Create the KV namespace first — it's required.** WHOOP rotates refresh tokens (each one is single-use), so the Worker must persist the newest token between requests:
+
+```bash
+wrangler kv namespace create "WHOOP_KV"
+# copy the printed id into the [[kv_namespaces]] block in wrangler.toml
 wrangler deploy
 ```
 
@@ -75,14 +80,6 @@ wrangler secret put WHOOP_CLIENT_ID
 wrangler secret put WHOOP_CLIENT_SECRET
 wrangler secret put WHOOP_REFRESH_TOKEN   # from Step 2
 wrangler secret put WORKER_API_KEY        # make up a random string, e.g. openssl rand -hex 16
-```
-
-**Optional but recommended:** Add KV-based token caching (reduces API calls):
-
-```bash
-wrangler kv:namespace create "WHOOP_KV"
-# copy the printed id, uncomment the [[kv_namespaces]] block in wrangler.toml, paste the id
-wrangler deploy
 ```
 
 Your Worker URL will be something like:
@@ -129,8 +126,10 @@ You should see JSON like:
 | `resting_heart_rate` | integer | RHR in bpm |
 | `spo2_percentage` | string | Blood oxygen % (4.0 only) |
 | `skin_temp_celsius` | string | Skin temp °C (4.0 only) |
+| `skin_temp_fahrenheit` | string | Skin temp °F (4.0 only) |
 | `sleep_performance_pct` | integer | Sleep performance % |
-| `sleep_duration` | string | e.g. `"7h 48m"` |
+| `sleep_duration` | string | Time asleep, e.g. `"7h 48m"` |
+| `sleep_time_in_bed` | string | Total time in bed |
 | `sleep_deep_duration` | string | Deep (SWS) sleep |
 | `sleep_rem_duration` | string | REM sleep |
 | `sleep_efficiency_pct` | integer | Sleep efficiency % |
@@ -139,7 +138,7 @@ You should see JSON like:
 | `avg_heart_rate` | integer | Avg HR over cycle |
 | `calories` | integer | kcal burned |
 | `kilojoules` | integer | kJ (WHOOP native) |
-| `score_state` | string | `SCORED` / `PENDING_SLEEP` |
+| `score_state` | string | `SCORED` / `PENDING_SCORE` / `UNSCORABLE` |
 | `last_updated` | string | ISO timestamp |
 
 ---
@@ -148,11 +147,7 @@ You should see JSON like:
 
 **Show only recovery (minimal layout):** Remove the `lower-grid` div from the markup.
 
-**Imperial temperatures:** In the Worker, convert `skin_temp_celsius` before returning:
-```js
-skin_temp_fahrenheit: rec?.score?.skin_temp_celsius != null
-  ? ((rec.score.skin_temp_celsius * 9/5) + 32).toFixed(1) : null,
-```
+**Imperial temperatures:** The Worker returns both `skin_temp_celsius` and `skin_temp_fahrenheit` — swap the variable (and the °C label) in the markup.
 
 **Refresh rate:** In TRMNL plugin settings, set the refresh interval. 30–60 minutes is ideal since WHOOP data updates after sleep/workouts are processed, not in real time.
 
@@ -178,8 +173,12 @@ whoop-trmnl/
 
 **Worker returns 401:** Check that `WORKER_API_KEY` secret matches the `api_key` query param.
 
-**Token refresh fails:** The refresh token may have expired (WHOOP tokens expire if unused). Re-run `get_token.js`.
+**Token refresh fails (`invalid_grant`):** WHOOP refresh tokens are single-use — each refresh invalidates the old token and returns a new one, which the Worker stores in KV. If the stored token gets out of sync (e.g. you refreshed the token somewhere else, or the KV namespace was recreated), re-run `get_token.js`, update the `WHOOP_REFRESH_TOKEN` secret, and delete the stale KV keys:
+```bash
+wrangler kv key delete --binding WHOOP_KV refresh_token --remote
+wrangler kv key delete --binding WHOOP_KV access_token --remote
+```
 
-**`score_state` shows `PENDING_SLEEP`:** Your WHOOP hasn't processed last night's sleep yet. The Worker returns whatever WHOOP has; the display will update once scoring completes.
+**`score_state` shows `PENDING_SCORE`:** Your WHOOP hasn't processed last night's sleep yet. The Worker returns whatever WHOOP has; the display will update once scoring completes.
 
 **SpO2 / skin temp are null:** These are WHOOP 4.0+ only features.
