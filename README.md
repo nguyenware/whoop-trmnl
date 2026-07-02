@@ -173,6 +173,8 @@ whoop-trmnl/
 
 **Worker returns 401:** Check that `WORKER_API_KEY` secret matches the `api_key` query param.
 
+**Token refresh fails (`invalid_request`):** WHOOP's OAuth server returns this generic error when the refresh token no longer exists (revoked, or rotated away and lost). A wrong client secret would show `invalid_client` instead. Fix: re-authorize below.
+
 **Token refresh fails (`invalid_grant`):** WHOOP refresh tokens are single-use — each refresh invalidates the old token and returns a new one, which the Worker stores in KV. If the stored token gets out of sync (e.g. you refreshed the token somewhere else, or the KV namespace was recreated), re-run `get_token.js`, update the `WHOOP_REFRESH_TOKEN` secret, and delete the stale KV keys:
 ```bash
 wrangler kv key delete --binding WHOOP_KV refresh_token --remote
