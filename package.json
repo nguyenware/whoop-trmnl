@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Optimize your McDonald's order across deals and MyMcDonald's rewards points",
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "license": "MIT",
   "private": true

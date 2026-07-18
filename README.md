@@ -59,7 +59,7 @@ instant.
 ## Tests
 
 ```
-node --test test/
+node --test      # or: npm test
 ```
 
 ## Caveats
