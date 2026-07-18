@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { optimize } = require('../solver.js');
+const { optimize, dealHacks } = require('../solver.js');
 
 const u = (item, price, rewardPoints = null) => ({ item, price, rewardPoints });
 
@@ -130,4 +130,56 @@ test('empty cart', () => {
   const r = optimize([], [], {});
   assert.strictEqual(r.totalCost, 0);
   assert.strictEqual(r.orders.length, 0);
+});
+
+// ---- Deal Hacks --------------------------------------------------------
+
+const PRICES = { 'Big Mac': 5.69, 'McChicken': 2.99, 'Large Fries': 4.39, 'Cheeseburger': 2.49, 'Medium Fries': 3.79 };
+const REWARDS = { 'McChicken': 1500, 'Cheeseburger': 1500, 'Medium Fries': 3000, 'Large Fries': 4500, 'Big Mac': 6000 };
+
+test('dealHacks ranks deals by cash saved', () => {
+  const deals = [
+    { kind: 'item_price', item: 'McChicken', price: 1.0 },   // saves 1.99
+    { kind: 'bogo', item: 'Big Mac' },                        // saves 5.69
+  ];
+  const h = dealHacks(deals, PRICES, {}, {});
+  assert.strictEqual(h.deals[0].deal.kind, 'bogo');
+  assert.strictEqual(h.deals[0].savings, 5.69);
+  assert.strictEqual(h.deals[1].savings, 1.99);
+  assert.strictEqual(h.bestDeal.deal.kind, 'bogo');
+});
+
+test('dealHacks ranks rewards by cents-per-point and flags affordability', () => {
+  const h = dealHacks([], PRICES, REWARDS, { pointsBalance: 2000 });
+  // McChicken (2.99/1500 ≈ 0.199) beats Cheeseburger (2.49/1500 ≈ 0.166) at the top tier.
+  assert.strictEqual(h.rewards[0].item, 'McChicken');
+  assert.ok(h.rewards[0].centsPerPoint > h.rewards[1].centsPerPoint || h.rewards[0].points <= h.rewards[1].points);
+  const bigMac = h.rewards.find((r) => r.item === 'Big Mac');
+  assert.strictEqual(bigMac.affordable, false); // 6000 > 2000
+  const mcchicken = h.rewards.find((r) => r.item === 'McChicken');
+  assert.strictEqual(mcchicken.affordable, true);
+});
+
+test('dealHacks picks a hack-of-the-day combo that does not reuse the same item', () => {
+  const deals = [{ kind: 'item_price', item: 'McChicken', price: 1.0 }];
+  const h = dealHacks(deals, PRICES, REWARDS, { pointsBalance: 6000 });
+  assert.strictEqual(h.bestDeal.item, 'McChicken');
+  // Best affordable reward must not also be the McChicken the deal already covers.
+  assert.notStrictEqual(h.bestReward.item, 'McChicken');
+  assert.strictEqual(h.bestReward.affordable, true);
+  assert.ok(h.comboSavings > 0);
+});
+
+test('dealHacks handles pct_off (no fixed savings, carries a rate)', () => {
+  const h = dealHacks([{ kind: 'pct_off', pct: 20 }], PRICES, {}, {});
+  assert.strictEqual(h.deals[0].savings, null);
+  assert.strictEqual(h.deals[0].rate, 20);
+});
+
+test('dealHacks with nothing entered is empty, not an error', () => {
+  const h = dealHacks([], PRICES, {}, {});
+  assert.strictEqual(h.deals.length, 0);
+  assert.strictEqual(h.rewards.length, 0);
+  assert.strictEqual(h.bestDeal, null);
+  assert.strictEqual(h.bestReward, null);
 });

@@ -61,6 +61,20 @@
   }
   .badge.deal { background: var(--gold); color: #402b00; }
   .badge.reward { background: var(--accent); color: #fff; }
+  .hack-hero {
+    border: 1px solid var(--accent); border-radius: 10px; padding: .9rem 1rem;
+    margin-top: .8rem; background: linear-gradient(135deg, rgba(200,16,46,.08), rgba(255,188,13,.12));
+  }
+  .hack-hero h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+  .hack-hero .save { font-size: 1.2rem; }
+  .hack-row {
+    display: flex; justify-content: space-between; gap: .6rem; align-items: baseline;
+    padding: .45rem 0; border-top: 1px dashed var(--line);
+  }
+  .hack-row .val { font-weight: 650; white-space: nowrap; }
+  .hack-row.dim { opacity: .55; }
+  .hack-sub { font-size: .85rem; color: var(--muted); }
+  h4.hack-head { margin: 1rem 0 .2rem; font-size: .95rem; }
   .summary { margin-top: .9rem; font-size: 1.02rem; }
   .summary .big { font-size: 1.35rem; font-weight: 700; }
   .save { color: var(--good); font-weight: 650; }
@@ -121,6 +135,13 @@
       <button id="addDeal">Add deal</button>
     </div>
     <ul id="dealList" class="plain"></ul>
+  </section>
+
+  <section id="hacksSection">
+    <h2>🔥 Deal Hacks of the Day</h2>
+    <p class="muted">The best value plays right now — before you even build a cart.</p>
+    <button id="showHacks">Show today's deal hacks</button>
+    <div id="hacks"></div>
   </section>
 
   <section>
@@ -306,6 +327,68 @@
     state.deals.push(d);
     $('dealPrice').value = ''; $('dealPct').value = ''; $('dealMin').value = '';
     save(); renderDeals();
+  };
+
+  // ---------- deal hacks ----------
+  function currentPrices() {
+    const p = {};
+    for (const name of allItems()) p[name] = priceOf(name);
+    return p;
+  }
+  $('showHacks').onclick = () => {
+    state.points = Math.max(0, parseInt($('points').value, 10) || 0);
+    state.dealPlusReward = $('dealPlusReward').checked;
+    save();
+    const box = $('hacks');
+    const h = McSolver.dealHacks(state.deals, currentPrices(), REWARDS, {
+      pointsBalance: state.points,
+      allowDealPlusReward: state.dealPlusReward,
+    });
+    if (!h.deals.length && !h.rewards.length) {
+      box.innerHTML = '<p class="muted">Add this week\'s deals (and your points balance) above, then check back.</p>';
+      return;
+    }
+
+    let html = '';
+
+    // Headline: the hack of the day.
+    if (h.bestDeal || h.bestReward) {
+      const parts = [];
+      if (h.bestDeal) parts.push(`use <strong>${h.bestDeal.label}</strong>`);
+      if (h.bestReward) parts.push(`redeem <strong>${h.bestReward.points.toLocaleString()} pts</strong> on <strong>${h.bestReward.item}</strong>`);
+      let howTo = '';
+      if (h.bestDeal && h.bestReward) {
+        howTo = h.allowTogether
+          ? ' — both in one order.'
+          : ' — as two separate orders (your app allows only one perk per order).';
+      }
+      html += `<div class="hack-hero"><h3>🏆 Deal Hack of the Day</h3>
+        <div>${parts.join(', and ')}${howTo}</div>`;
+      if (h.comboSavings > 0) html += `<div class="save" style="margin-top:.3rem">≈ ${fmt(h.comboSavings)} of value</div>`;
+      html += '</div>';
+    }
+
+    // All deals ranked by cash saved.
+    if (h.deals.length) {
+      html += '<h4 class="hack-head">Today\'s deals, best first</h4>';
+      for (const d of h.deals) {
+        const val = d.savings != null ? `saves ${fmt(d.savings)}` : `${d.rate}% off`;
+        html += `<div class="hack-row"><span>${d.label}<div class="hack-sub">${d.detail}${d.conditional ? ' · needs a qualifying order' : ''}</div></span><span class="val save">${val}</span></div>`;
+      }
+    }
+
+    // Point redemptions ranked by value; unaffordable ones dimmed.
+    if (h.rewards.length) {
+      html += '<h4 class="hack-head">Best point redemptions right now</h4>';
+      for (const r of h.rewards.slice(0, 8)) {
+        html += `<div class="hack-row${r.affordable ? '' : ' dim'}">
+          <span>${r.item}<div class="hack-sub">${r.points.toLocaleString()} pts → ${fmt(r.value)}${r.affordable ? '' : ' · not enough points yet'}</div></span>
+          <span class="val">${r.centsPerPoint.toFixed(2)}¢/pt</span></div>`;
+      }
+      html += '<p class="hack-sub" style="margin-top:.5rem">Higher ¢/point = better redemption. Spend points on the top of this list, pay cash for the bottom.</p>';
+    }
+
+    box.innerHTML = html;
   };
 
   // ---------- optimize ----------

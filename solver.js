@@ -237,5 +237,90 @@
     };
   }
 
-  return { optimize, orderOptions, applyDeal };
+  // ---- Deal Hacks -------------------------------------------------------
+  // Standalone valuation of the plays available today, independent of any
+  // specific cart. Answers "what are the best moves right now?"
+
+  function describeDeal(d) {
+    if (d.label) return d.label;
+    switch (d.kind) {
+      case 'item_price': return `${d.item} for $${d.price.toFixed(2)}`;
+      case 'bundle_price': return `${d.items.join(' + ')} for $${d.price.toFixed(2)}`;
+      case 'bogo': return `BOGO ${d.item}`;
+      case 'free_with_min': return `Free ${d.item} with $${(d.minSpend || 0).toFixed(2)}+`;
+      case 'pct_off': return `${d.pct}% off`;
+      default: return 'Deal';
+    }
+  }
+
+  // Best-case cash saved by using one deal on its ideal items.
+  function evalDealValue(deal, prices) {
+    const p = (name) => prices[name] || 0;
+    const label = describeDeal(deal);
+    switch (deal.kind) {
+      case 'item_price':
+        return { deal, label, item: deal.item, savings: round2(p(deal.item) - deal.price), detail: `${deal.item}: $${p(deal.item).toFixed(2)} → $${deal.price.toFixed(2)}` };
+      case 'bundle_price': {
+        const full = deal.items.reduce((s, i) => s + p(i), 0);
+        return { deal, label, savings: round2(full - deal.price), detail: `à la carte $${full.toFixed(2)} → $${deal.price.toFixed(2)}` };
+      }
+      case 'bogo':
+        return { deal, label, item: deal.item, savings: round2(p(deal.item)), detail: `second ${deal.item} free` };
+      case 'free_with_min':
+        return { deal, label, item: deal.item, savings: round2(p(deal.item)), conditional: true, detail: `free with a $${(deal.minSpend || 0).toFixed(2)}+ order` };
+      case 'pct_off':
+        return { deal, label, savings: null, rate: deal.pct, detail: `${deal.pct}% off the whole order` + (deal.minSpend ? ` ($${deal.minSpend.toFixed(2)}+ orders)` : '') };
+      default:
+        return null;
+    }
+  }
+
+  // dealHacks(deals, prices, rewards, opts) -> ranked plays + a "hack of the day".
+  //   prices:  { itemName: price }
+  //   rewards: { itemName: pointsCost }
+  function dealHacks(deals, prices, rewards, opts) {
+    opts = opts || {};
+    const balance = opts.pointsBalance || 0;
+    const allowTogether = opts.allowDealPlusReward !== false;
+
+    const dealHackList = (deals || [])
+      .map((d) => evalDealValue(d, prices || {}))
+      .filter(Boolean)
+      .sort((a, b) => (b.savings || 0) - (a.savings || 0));
+
+    const rewardHackList = Object.keys(rewards || {})
+      .filter((item) => prices && prices[item] != null)
+      .map((item) => {
+        const points = rewards[item];
+        const value = prices[item];
+        return {
+          item,
+          points,
+          value,
+          centsPerPoint: round2((value * 100) / points * 100) / 100,
+          affordable: points <= balance,
+        };
+      })
+      .sort((a, b) => b.centsPerPoint - a.centsPerPoint || a.points - b.points);
+
+    const bestDeal = dealHackList[0] || null;
+    const bestReward =
+      rewardHackList.find((r) => r.affordable && (!bestDeal || r.item !== bestDeal.item)) || null;
+
+    // Combined value of the headline "hack of the day".
+    let comboSavings = 0;
+    if (bestDeal && bestDeal.savings != null) comboSavings += bestDeal.savings;
+    if (bestReward) comboSavings += bestReward.value;
+
+    return {
+      deals: dealHackList,
+      rewards: rewardHackList,
+      bestDeal,
+      bestReward,
+      allowTogether,
+      comboSavings: round2(comboSavings),
+    };
+  }
+
+  return { optimize, orderOptions, applyDeal, dealHacks, evalDealValue };
 });

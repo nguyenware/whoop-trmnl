@@ -22,7 +22,21 @@ enter (cart, prices, deals, points) is saved in `localStorage`.
    - buy one get one free
    - free item with a minimum purchase ("free fries with $1+")
    - % off the whole order
-4. Hit **Optimize my order**.
+4. Hit **Optimize my order** for a specific cart — or **Show today's deal hacks**
+   for the best plays available right now, cart or no cart.
+
+## 🔥 Deal Hacks
+
+Independent of any cart, the **Deal Hacks** panel ranks today's plays:
+
+- every deal you entered, ordered by cash saved on its ideal items;
+- every point redemption, ordered by ¢/point value, with the ones you can't yet
+  afford dimmed;
+- a headline **Deal Hack of the Day** — the single best deal + best affordable
+  redemption, and whether to run them in one order or split them.
+
+It's the "just tell me the best move" view; the full optimizer is for when you
+already know exactly what you want to eat.
 
 ## What it models
 
