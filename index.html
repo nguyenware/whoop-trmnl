@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mcoptimizer — best bang for your points or buck</title>
+<style>
+  :root {
+    --bg: #faf8f5; --card: #ffffff; --ink: #1f1a17; --muted: #6b625c;
+    --line: #e7e0d8; --accent: #c8102e; --gold: #ffbc0d; --good: #1a7f4b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17151a; --card: #211e24; --ink: #f0ece8; --muted: #a39a93;
+      --line: #383239; --accent: #ff5a5f; --gold: #ffbc0d; --good: #4cc98a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 1rem 1rem 4rem; }
+  header { margin: 1.5rem 0 .5rem; }
+  h1 { font-size: 1.7rem; margin: 0; }
+  h1 .fries { color: var(--gold); }
+  .tag { color: var(--muted); margin: .2rem 0 0; }
+  section {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 1rem; margin-top: 1rem;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 .7rem; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  select, input, button {
+    font: inherit; color: inherit; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: .45rem .6rem;
+  }
+  input[type="number"] { width: 6.2rem; }
+  button { cursor: pointer; }
+  button.primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+    font-weight: 650; padding: .6rem 1.2rem; width: 100%; font-size: 1.05rem;
+  }
+  button.small { padding: .2rem .55rem; line-height: 1.2; }
+  ul.plain { list-style: none; margin: .6rem 0 0; padding: 0; }
+  ul.plain li {
+    display: flex; gap: .5rem; align-items: center; justify-content: space-between;
+    padding: .4rem 0; border-top: 1px dashed var(--line);
+  }
+  .grow { flex: 1; min-width: 8rem; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .price-input { width: 5.2rem; }
+  .order-card {
+    border: 1px solid var(--line); border-left: 4px solid var(--gold);
+    border-radius: 10px; padding: .7rem .9rem; margin-top: .7rem;
+  }
+  .order-card h3 { margin: 0 0 .3rem; font-size: 1rem; }
+  .badge {
+    display: inline-block; border-radius: 999px; padding: .05rem .6rem;
+    font-size: .82rem; font-weight: 600; margin-left: .4rem; vertical-align: middle;
+  }
+  .badge.deal { background: var(--gold); color: #402b00; }
+  .badge.reward { background: var(--accent); color: #fff; }
+  .summary { margin-top: .9rem; font-size: 1.02rem; }
+  .summary .big { font-size: 1.35rem; font-weight: 700; }
+  .save { color: var(--good); font-weight: 650; }
+  details { margin-top: .5rem; }
+  label.opt { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; }
+  .hidden { display: none; }
+  footer { margin-top: 2rem; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><span class="fries">🍟</span> mcoptimizer</h1>
+    <p class="tag">Tell it what you want. It tells you how to order it — which deal, which reward, whether to split into two orders.</p>
+  </header>
+
+  <section>
+    <h2>1 · Your order</h2>
+    <div class="row">
+      <select id="itemSelect" class="grow"></select>
+      <button id="addItem">Add</button>
+    </div>
+    <div class="row" style="margin-top:.5rem">
+      <input id="customName" class="grow" placeholder="Custom item name">
+      <input id="customPrice" type="number" step="0.01" min="0" placeholder="Price $">
+      <button id="addCustom">Add</button>
+    </div>
+    <ul id="cartList" class="plain"></ul>
+    <p class="muted">Prices are editable ballparks — set them to what your store actually charges.</p>
+  </section>
+
+  <section>
+    <h2>2 · Your points</h2>
+    <div class="row">
+      <input id="points" type="number" min="0" step="100" placeholder="0">
+      <span class="muted">MyMcDonald's points balance</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>3 · This week's deals <span class="muted">(copy from your app)</span></h2>
+    <div class="row">
+      <select id="dealKind">
+        <option value="item_price">Item for a fixed price</option>
+        <option value="bundle_price">Bundle for a fixed price</option>
+        <option value="bogo">Buy one get one free</option>
+        <option value="free_with_min">Free item with minimum purchase</option>
+        <option value="pct_off">% off the whole order</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:.5rem">
+      <select id="dealItem" class="grow"></select>
+      <select id="dealItem2" class="grow hidden"></select>
+      <select id="dealItem3" class="grow hidden"></select>
+      <input id="dealPrice" type="number" step="0.01" min="0" placeholder="Deal price $">
+      <input id="dealPct" type="number" step="1" min="1" max="100" placeholder="% off" class="hidden">
+      <input id="dealMin" type="number" step="0.01" min="0" placeholder="Min spend $" class="hidden">
+      <button id="addDeal">Add deal</button>
+    </div>
+    <ul id="dealList" class="plain"></ul>
+  </section>
+
+  <section>
+    <details>
+      <summary><strong>Options</strong></summary>
+      <label class="opt">Split into at most
+        <select id="maxOrders"><option>1</option><option selected>2</option><option>3</option></select>
+        separate orders
+      </label>
+      <label class="opt"><input type="checkbox" id="dealPlusReward" checked>
+        App allows one deal <em>and</em> one reward in the same order</label>
+      <label class="opt">Don't redeem points below
+        <input id="minCpp" type="number" step="0.01" min="0" placeholder="e.g. 0.10">
+        ¢/point <span class="muted">(blank = always redeem if it saves cash)</span></label>
+    </details>
+  </section>
+
+  <section>
+    <button id="go" class="primary">Optimize my order</button>
+    <div id="results"></div>
+  </section>
+
+  <footer>
+    Not affiliated with McDonald's. Deals and prices vary by store and account — this tool
+    just does the math on what <em>you</em> enter. Earning assumed at 100 pts / $1.
+  </footer>
+</main>
+
+<script src="data.js"></script>
+<script src="solver.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { MENU, REWARDS } = McData;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (x) => '$' + x.toFixed(2);
+
+  // ---------- state (persisted) ----------
+  const defaultState = () => ({
+    prices: Object.fromEntries(MENU.map((m) => [m.name, m.price])),
+    cart: [],            // [{ name, qty }]
+    custom: {},          // { name: price } for custom items
+    deals: [],
+    points: 0,
+    maxOrders: 2,
+    dealPlusReward: true,
+    minCpp: '',
+  });
+  let state;
+  try {
+    state = Object.assign(defaultState(), JSON.parse(localStorage.getItem('mcoptimizer') || '{}'));
+  } catch (e) { state = defaultState(); }
+  const save = () => localStorage.setItem('mcoptimizer', JSON.stringify(state));
+
+  const allItems = () => [...MENU.map((m) => m.name), ...Object.keys(state.custom)];
+  const priceOf = (name) => state.custom[name] != null ? state.custom[name] : state.prices[name];
+
+  // ---------- item selects ----------
+  function fillItemSelects() {
+    for (const id of ['itemSelect', 'dealItem', 'dealItem2', 'dealItem3']) {
+      const sel = $(id);
+      const cur = sel.value;
+      sel.innerHTML = '';
+      if (id !== 'itemSelect') {
+        const opt = document.createElement('option');
+        opt.value = ''; opt.textContent = id === 'dealItem' ? '— pick item —' : '— (optional) —';
+        sel.appendChild(opt);
+      }
+      for (const name of allItems()) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name + (id === 'itemSelect' ? ` — ${fmt(priceOf(name))}` : '');
+        sel.appendChild(opt);
+      }
+      if (cur) sel.value = cur;
+    }
+  }
+
+  // ---------- cart ----------
+  function renderCart() {
+    const ul = $('cartList');
+    ul.innerHTML = '';
+    for (const line of state.cart) {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.className = 'grow';
+      name.textContent = line.name + (REWARDS[line.name] ? ` · ${REWARDS[line.name]} pts` : '');
+      const price = document.createElement('input');
+      price.type = 'number'; price.step = '0.01'; price.min = '0';
+      price.className = 'price-input';
+      price.value = priceOf(line.name).toFixed(2);
+      price.onchange = () => {
+        const v = Math.max(0, parseFloat(price.value) || 0);
+        if (state.custom[line.name] != null) state.custom[line.name] = v;
+        else state.prices[line.name] = v;
+        save(); fillItemSelects();
+      };
+      const minus = btn('−', () => { line.qty > 1 ? line.qty-- : state.cart.splice(state.cart.indexOf(line), 1); save(); renderCart(); });
+      const qty = document.createElement('span');
+      qty.textContent = '×' + line.qty;
+      const plus = btn('+', () => { line.qty++; save(); renderCart(); });
+      li.append(name, price, minus, qty, plus);
+      ul.appendChild(li);
+    }
+  }
+  function btn(label, fn) {
+    const b = document.createElement('button');
+    b.className = 'small'; b.textContent = label; b.onclick = fn;
+    return b;
+  }
+  function addToCart(name) {
+    const line = state.cart.find((l) => l.name === name);
+    if (line) line.qty++;
+    else state.cart.push({ name, qty: 1 });
+    save(); renderCart();
+  }
+  $('addItem').onclick = () => addToCart($('itemSelect').value);
+  $('addCustom').onclick = () => {
+    const name = $('customName').value.trim();
+    const price = parseFloat($('customPrice').value);
+    if (!name || !(price >= 0)) return;
+    state.custom[name] = price;
+    $('customName').value = ''; $('customPrice').value = '';
+    fillItemSelects(); addToCart(name);
+  };
+
+  // ---------- deals ----------
+  const kindFields = {
+    item_price:    { item: 1, price: 1 },
+    bundle_price:  { item: 1, item2: 1, item3: 1, price: 1 },
+    bogo:          { item: 1 },
+    free_with_min: { item: 1, min: 1 },
+    pct_off:       { pct: 1, min: 1 },
+  };
+  function refreshDealForm() {
+    const f = kindFields[$('dealKind').value];
+    $('dealItem').classList.toggle('hidden', !f.item);
+    $('dealItem2').classList.toggle('hidden', !f.item2);
+    $('dealItem3').classList.toggle('hidden', !f.item3);
+    $('dealPrice').classList.toggle('hidden', !f.price);
+    $('dealPct').classList.toggle('hidden', !f.pct);
+    $('dealMin').classList.toggle('hidden', !f.min);
+  }
+  $('dealKind').onchange = refreshDealForm;
+
+  function dealLabel(d) {
+    switch (d.kind) {
+      case 'item_price': return `${d.item} for ${fmt(d.price)}`;
+      case 'bundle_price': return `${d.items.join(' + ')} for ${fmt(d.price)}`;
+      case 'bogo': return `BOGO ${d.item}`;
+      case 'free_with_min': return `Free ${d.item} with ${fmt(d.minSpend)}+ purchase`;
+      case 'pct_off': return `${d.pct}% off` + (d.minSpend ? ` orders of ${fmt(d.minSpend)}+` : ' the whole order');
+    }
+  }
+  function renderDeals() {
+    const ul = $('dealList');
+    ul.innerHTML = '';
+    state.deals.forEach((d, i) => {
+      const li = document.createElement('li');
+      const s = document.createElement('span');
+      s.className = 'grow'; s.textContent = dealLabel(d);
+      li.append(s, btn('remove', () => { state.deals.splice(i, 1); save(); renderDeals(); }));
+      ul.appendChild(li);
+    });
+  }
+  $('addDeal').onclick = () => {
+    const kind = $('dealKind').value;
+    const item = $('dealItem').value;
+    const price = parseFloat($('dealPrice').value);
+    const pct = parseFloat($('dealPct').value);
+    const minSpend = parseFloat($('dealMin').value) || 0;
+    let d = null;
+    if (kind === 'item_price' && item && price >= 0) d = { kind, item, price };
+    if (kind === 'bundle_price' && item && price >= 0) {
+      const items = [item, $('dealItem2').value, $('dealItem3').value].filter(Boolean);
+      d = { kind, items, price };
+    }
+    if (kind === 'bogo' && item) d = { kind, item };
+    if (kind === 'free_with_min' && item) d = { kind, item, minSpend };
+    if (kind === 'pct_off' && pct > 0) d = { kind, pct, minSpend };
+    if (!d) return;
+    d.label = dealLabel(d);
+    state.deals.push(d);
+    $('dealPrice').value = ''; $('dealPct').value = ''; $('dealMin').value = '';
+    save(); renderDeals();
+  };
+
+  // ---------- optimize ----------
+  $('go').onclick = () => {
+    state.points = Math.max(0, parseInt($('points').value, 10) || 0);
+    state.maxOrders = parseInt($('maxOrders').value, 10);
+    state.dealPlusReward = $('dealPlusReward').checked;
+    state.minCpp = $('minCpp').value;
+    save();
+
+    const units = [];
+    for (const line of state.cart) {
+      for (let i = 0; i < line.qty; i++) {
+        units.push({
+          item: line.name,
+          price: priceOf(line.name),
+          rewardPoints: REWARDS[line.name] || null,
+        });
+      }
+    }
+    const box = $('results');
+    if (!units.length) { box.innerHTML = '<p class="muted">Add something to your order first.</p>'; return; }
+    let plan;
+    try {
+      plan = McSolver.optimize(units, state.deals, {
+        maxOrders: state.maxOrders,
+        pointsBalance: state.points,
+        allowDealPlusReward: state.dealPlusReward,
+        minCentsPerPoint: parseFloat(state.minCpp) || 0,
+      });
+    } catch (e) { box.innerHTML = `<p>${e.message}</p>`; return; }
+
+    let html = '';
+    plan.orders.forEach((o, i) => {
+      html += `<div class="order-card"><h3>Order ${i + 1} · ${fmt(o.cost)}`;
+      if (o.deal) html += `<span class="badge deal">${o.deal.label || dealLabel(o.deal)}</span>`;
+      if (o.reward) html += `<span class="badge reward">Redeem ${o.reward.item} · ${o.reward.points} pts</span>`;
+      html += '</h3><div class="muted">' + o.units.map((u) => u.item).join(', ') + '</div>';
+      if (o.reward) {
+        const cpp = (o.reward.value * 100 / o.reward.points).toFixed(2);
+        html += `<div class="muted">That redemption is worth ${cpp}¢/point (${fmt(o.reward.value)} for ${o.reward.points} pts).</div>`;
+      }
+      html += '</div>';
+    });
+    html += `<div class="summary">
+      <div class="big">Total: ${fmt(plan.totalCost)}</div>
+      <div>Full price would be ${fmt(plan.baseline)} — <span class="save">you save ${fmt(plan.saved)}</span></div>
+      <div class="muted">Points spent: ${plan.pointsSpent.toLocaleString()} · points earned back: ~${plan.pointsEarned.toLocaleString()}</div>`;
+    if (plan.orders.length > 1) {
+      html += `<div class="muted">Yes, really — place ${plan.orders.length} separate orders in the app to use every deal/reward slot.</div>`;
+    }
+    html += '</div>';
+    box.innerHTML = html;
+  };
+
+  // ---------- init ----------
+  fillItemSelects();
+  renderCart();
+  renderDeals();
+  refreshDealForm();
+  $('points').value = state.points || '';
+  $('maxOrders').value = String(state.maxOrders || 2);
+  $('dealPlusReward').checked = state.dealPlusReward !== false;
+  $('minCpp').value = state.minCpp || '';
+})();
+</script>
+</body>
+</html>
